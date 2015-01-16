@@ -1,0 +1,139 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Socket.IO chat</title>
+    <style>
+      body { font: 13px Helvetica, Arial; }
+      .chat{ width: 200px; float:left; padding:0px; }
+      .chat .messages{ list-style-type: none; width:100%; padding:0px; max-height:500px; overflow:scroll; }
+      .chat .messages li{ width:100%; margin:0px; padding:0px; padding-left:10px; min-height:20px; }
+      .chat .messages li:nth-child(2n){ background-color:#eee; }
+
+      .game{ float:left; margin-left: 15px; }
+      .game h1{ width:305px; text-align:center; }
+      .game .tictactoe td{ width:100px; height:100px; border-radius:5px; background-color:steelblue; color:#eee; font-size:75px; text-align:center; }
+   
+    </style>
+    <!-- <script src="https://code.jquery.com/jquery-2.1.1.js"></script> -->
+    <script type="text/javascript" src="/lib/jquery.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+    	$(function(){
+		var socket = io();
+
+		$('form').submit(function(){
+			var inp = $(this).children('input').eq(0);
+			var message = { "room" : room, "body": $(inp).val()};
+	    		socket.emit('chat message', message);
+	    		$(inp).val('');
+	   		return false;
+	  	});
+
+		socket.on('chat message', function(msg){
+			// var msg = message["body"];
+			$('.messages').append($('<li>').text(msg));
+			$('.messages').scrollTop( $('.messages').height() );
+		});
+		
+		var room;
+
+// Join Room
+
+		$(".noroom button").click(function(){
+			if(room){
+				alert('please leave the current room before joining another');
+				return;
+			}
+			room = $(".noroom input").val() + '';
+			if(room){ socket.emit( 'join', room ); }
+			console.log(socket.id);
+		});	
+
+// Tic Tac Toe Logic
+
+		socket.on('move', function(move){
+			$('.tictactoe').find('tr').eq(move['place']['row']).find('td').eq(move['place']['col'])[0].innerHTML=move['piece'];
+			checkForWin();
+		});
+
+		socket.on('turn', function(){
+			yourTurn=true;	
+		});
+		
+		
+		var winningCombinations = [ 	[[0,0], [0,1], [0,2]],
+					  	[[1,0], [1,1], [1,2]],
+					  	[[2,0], [2,1], [2,2]],
+
+					  	[[0,0], [1,0], [2,0]],
+					  	[[0,1], [1,1], [2,1]],
+					  	[[0,2], [1,2], [2,2]],
+
+					  	[[0,0], [1,1], [2,2]],
+					  	[[0,2], [1,1], [2,0]]
+					  ];
+		var yourTurn = false;
+		var piece = 'c';
+		var winner = false;
+
+		function checkForWin(){
+			for(i in winningCombinations){
+				var wc = winningCombinations[i];
+				var a = $('.tictactoe').find('tr').eq(wc[0][0]).find('td').eq(wc[0][1])[0].innerHTML;
+				var b = $('.tictactoe').find('tr').eq(wc[1][0]).find('td').eq(wc[1][1])[0].innerHTML;
+				var c = $('.tictactoe').find('tr').eq(wc[2][0]).find('td').eq(wc[2][1])[0].innerHTML;
+
+				if(a && b && c && a === b && b === c){ alert(a+' wins!'); winner = a; }
+			}
+		}
+
+		$(".tictactoe td").click(function(){
+			if(winner){
+				alert(winner+' already won');
+			}else if(!yourTurn){
+				alert("it's not your turn");
+			}else if( this.innerHTML ){	alert('piece is taken bud');	}
+			else{ 
+				//this.innerHTML = piece; 
+				var row = $(this).parent().prevAll().length;
+				var col = $(this).prevAll().length;
+
+				socket.emit('move', {'room' : room, 'move' : {"row" : row, "col" : col} });
+				yourTurn=false;
+				// check board
+				// send notice
+				checkForWin();
+			}
+
+		});
+	});
+
+    </script>
+  </head>
+  <body>
+  	<div class="chat">
+		<div class="noroom">
+			<p> What room do you want to join? </p>
+			<input placeholder="room name" />
+			<button> join </button>
+		</div>
+		<div class="room">
+			<h3>Room: </h3>
+    			<ul class="messages"></ul>
+    			<form action="" class="new-message">
+    	  			<input id="m" autocomplete="off" /><button>Send</button>
+    			</form>
+		</div>
+	</div>
+	<div class="game">
+		<h1> Tic Tac Cece </h1>
+		<table class="tictactoe">
+			<tr> <td></td> <td></td> <td></td> </tr>
+			<tr> <td></td> <td></td> <td></td> </tr>
+			<tr> <td></td> <td></td> <td></td> </tr>
+		</table>
+		<p class='info'> </p>
+
+	</div>
+  </body>
+</html>
